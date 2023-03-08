@@ -1,5 +1,5 @@
 numpy==1.21.0
 pandas==1.2.4
-sklearn==0.24.1
+sklearn
 dython==0.6.4.post1
 scipy==1.4.1
