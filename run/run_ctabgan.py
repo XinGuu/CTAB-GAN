@@ -1,3 +1,9 @@
+"""
+    Deprecated!
+    Sorry, i cannot build sklearn==0.24.1 on my laptop.
+    Turn to the notebook and colab.
+"""
+
 # Importing the model
 from model.ctabgan import CTABGAN
 # Importing the evaluation metrics
