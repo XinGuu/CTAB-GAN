@@ -38,15 +38,15 @@ class DataPrep(object):
         self.label_encoder_list = []
 
         # Spliting the input data to obtain training dataset
-        target_col = list(type.values())[0]
-        y_real = raw_df[target_col]
-        X_real = raw_df.drop(columns=[target_col])
-        X_train_real, _, y_train_real, _ = model_selection.train_test_split(X_real, y_real, test_size=test_ratio,
-                                                                            stratify=y_real, random_state=42)
-        X_train_real[target_col] = y_train_real
+        # target_col = list(type.values())[0]
+        # y_real = raw_df[target_col]
+        # X_real = raw_df.drop(columns=[target_col])
+        # X_train_real, _, y_train_real, _ = model_selection.train_test_split(X_real, y_real, test_size=test_ratio,
+        #                                                                     stratify=y_real, random_state=42)
+        # X_train_real[target_col] = y_train_real
 
         # Replacing empty strings with na if any and replace na with empty
-        self.df = X_train_real
+        self.df = raw_df
         self.df = self.df.replace(r' ', np.nan)
         self.df = self.df.fillna('empty')
 

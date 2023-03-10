@@ -1,9 +1,3 @@
-"""
-    Deprecated!
-    Sorry, i cannot build sklearn==0.24.1 on my laptop.
-    Turn to the notebook and colab.
-"""
-
 # Importing the model
 from model.ctabgan import CTABGAN
 # Importing the evaluation metrics
@@ -60,4 +54,7 @@ if __name__ == '__main__':
         synthesizer.fit()
         syn = synthesizer.generate_samples()
         syn.to_csv(fake_file_root + "/" + dataset + "/" + dataset + "_fake_{exp}.csv".format(exp=i), index=False)
+
+    # Storing generated data for future use if needed
+    syn.to_csv(fake_file_root + "/" + dataset + "/" + dataset + "_fake_{exp}.csv".format(exp=i), index=False)
 
