@@ -1,4 +1,6 @@
 # Importing the model
+import os
+
 from model.ctabgan import CTABGAN
 # Importing the evaluation metrics
 from model.eval.evaluation import get_utility_metrics,stat_sim,privacy_metrics
@@ -7,12 +9,14 @@ import numpy as np
 import pandas as pd
 import glob
 import argparse
+import json
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     # Required parameters
-    parser.add_argument("--dataset", type=str, choices=["adult", "bank"], default="adult")
+    parser.add_argument("--dataset", type=str, choices=["adult", "bank", "cervical"], default="adult")
+    parser.add_argument("--raw_csv_name", type=str, default="train", help="Depend on whether you name it train.csv or data.csv")
     parser.add_argument("--num_exp", type=int, default=1, help="Specifying the replication number")
 
     args = parser.parse_args()
@@ -23,25 +27,26 @@ if __name__ == '__main__':
 
     root_dir = '../'
     # Specifying the path of the dataset used
-    real_path = f"{root_dir}/datasets/raw/{dataset}/train.csv"
+    real_path = f"{root_dir}/datasets/raw/{dataset}/{args.raw_csv_name}.csv"
     # Specifying the root directory for storing generated data
-    fake_file_root = "Fake_Datasets"
+    fake_file_root = f"{root_dir}/Fake_Datasets"
 
-    # load attributs
-    import json
-
+    # load attributes
     with open(f"{root_dir}/datasets/raw/{dataset}/attrs.json", 'r') as f:
         attrs = json.load(f)
 
     categorical_columns = attrs["categorical"]
     integer_columns = attrs["numerical"]
-    problem_type = {"Classification": attrs["target"]}
+    if attrs["target"] == '':
+        problem_type = None
+    else:
+        problem_type = {"classification/regression": attrs["target"]}
 
     # Initializing the synthesizer object and specifying input parameters
     # Notice: If you have continuous variable, you do not need to explicitly assign it. It will be treated like
     # that by default
     synthesizer = CTABGAN(raw_csv_path=real_path,
-                          test_ratio=0.20,
+                          test_ratio=0.20,      # this doesn't matter now. i removed train/test split in the code
                           categorical_columns=categorical_columns,
                           log_columns=[],
                           mixed_columns={},
@@ -49,12 +54,14 @@ if __name__ == '__main__':
                           problem_type=problem_type,
                           epochs=150)
 
-    # Fitting the synthesizer to the training dataset and generating synthetic data
+    # Fitting the synthesizer to the training dataset, generating synthetic data and storing generated data
     for i in range(num_exp):
         synthesizer.fit()
         syn = synthesizer.generate_samples()
-        syn.to_csv(fake_file_root + "/" + dataset + "/" + dataset + "_fake_{exp}.csv".format(exp=i), index=False)
 
-    # Storing generated data for future use if needed
-    syn.to_csv(fake_file_root + "/" + dataset + "/" + dataset + "_fake_{exp}.csv".format(exp=i), index=False)
+        # Save generated synthetic data
+        fake_file_dir = f"{fake_file_root}/{dataset}/"
+        if not os.path.exists(fake_file_dir):
+            os.makedirs(fake_file_dir)
+        syn.to_csv(fake_file_dir + f"{dataset}_fake_{i}.csv", index=False)
 
