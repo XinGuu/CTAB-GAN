@@ -18,6 +18,11 @@ if __name__ == '__main__':
     parser.add_argument("--dataset", type=str, choices=["adult", "bank", "cervical"], default="adult")
     parser.add_argument("--raw_csv_name", type=str, default="train", help="Depend on whether you name it train.csv or data.csv")
     parser.add_argument("--num_exp", type=int, default=1, help="Specifying the replication number")
+    parser.add_argument("--epoch", type=int, default=3)
+    parser.add_argument("--batch_size", type=int, default=64)
+    parser.add_argument("--clip_norm", type=float, default=1.)
+    parser.add_argument("--epsilon", type=float, default=1.)
+    parser.add_argument("--delta", type=float, default=1e-5)
 
     args = parser.parse_args()
     # Specifying the replication number
@@ -38,7 +43,7 @@ if __name__ == '__main__':
     categorical_columns = attrs["categorical"]
     integer_columns = attrs["numerical"]
     if attrs["target"] == '':
-        problem_type = None
+        problem_type = {None: None}
     else:
         problem_type = {"classification/regression": attrs["target"]}
 
@@ -50,13 +55,18 @@ if __name__ == '__main__':
                           categorical_columns=categorical_columns,
                           log_columns=[],
                           mixed_columns={},
+                          general_columns=["age"],
+                          non_categorical_columns=[],
                           integer_columns=integer_columns,
-                          problem_type=problem_type,
-                          epochs=150)
+                          problem_type=problem_type)
 
     # Fitting the synthesizer to the training dataset, generating synthetic data and storing generated data
     for i in range(num_exp):
-        synthesizer.fit()
+        synthesizer.fit(clip_norm=args.clip_norm,
+                        epsilon=args.epsilon,
+                        delta=args.delta,
+                        batch_size=args.batch_size,
+                        epoch=args.epoch)
         syn = synthesizer.generate_samples()
 
         # Save generated synthetic data

@@ -11,6 +11,9 @@ from model.synthesizer.transformer import ImageTransformer,DataTransformer
 from model.privacy_utils.rdp_accountant import compute_rdp, get_privacy_spent
 from tqdm import tqdm
 
+from ..privacy_utils.utils import get_noise_multiplier
+from ..privacy_utils.rdp import RDPAccountant
+
 
 class Classifier(Module):
     def __init__(self,input_dim, dis_dims,st_ed):
@@ -346,9 +349,8 @@ class CTABGANSynthesizer:
                  num_channels=64,
                  l2scale=1e-5,
                  batch_size=500,
-                 epochs=150):
-                 
-        self.private = False
+                 epochs=3):
+
         self.micro_batch_size = batch_size
 
         # clip_coeff and sigma are the hyper-parameters for injecting noise in gradients
@@ -368,7 +370,12 @@ class CTABGANSynthesizer:
         self.epochs = epochs
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    def fit(self, train_data=pd.DataFrame, categorical=[], mixed={}, general=[], non_categorical=[], type={}):
+    def fit(self, train_data=pd.DataFrame, categorical=[], mixed={}, general=[], non_categorical=[], type={},
+            clip_norm=1., epsilon=1., delta=1e-5,
+            batch_size=500, epoch=3):
+
+        self.epochs = epoch
+        self.batch_size = batch_size
 
         problem_type = None
         target_index=None
@@ -397,7 +404,15 @@ class CTABGANSynthesizer:
             if i * i >= col_size_g:
                 self.gside = i
                 break
-		
+
+        # Calculate noise_multiplier
+        privacy_accountant = RDPAccountant()
+        sample_rate = self.batch_size / train_data.shape[0]
+        noise_multiplier = get_noise_multiplier(target_epsilon=epsilon,
+                                                     target_delta=delta,
+                                                     sample_rate=sample_rate,
+                                                     epochs=self.epochs,
+                                                     accountant=privacy_accountant.mechanism())
 
         layers_G = determine_layers_gen(self.gside, self.random_dim+self.cond_generator.n_opt, self.num_channels)
         layers_D = determine_layers_disc(self.dside, self.num_channels)
@@ -411,7 +426,7 @@ class CTABGANSynthesizer:
         st_ed = None
         classifier=None
         optimizerC= None
-        if target_index != None:
+        if target_index is not None:
             st_ed= get_st_ed(target_index,self.transformer.output_info)
             classifier = Classifier(data_dim,self.class_dim,st_ed).to(self.device)
             optimizerC = optim.Adam(classifier.parameters(),**optimizer_params)
@@ -465,30 +480,24 @@ class CTABGANSynthesizer:
                     d_real,_ = discriminator(real_cat_d)
                     
                     # following block cliping gradients and add noises.
-                    if self.private:
-                        
-                        clipped_grads = {
-                            name: torch.zeros_like(param) for name, param in discriminator.named_parameters()}
+                    clipped_grads = {
+                        name: torch.zeros_like(param) for name, param in discriminator.named_parameters()}
 
-                        for k in range(int(d_real.size(0) / self.micro_batch_size)):
-                            err_micro = -1*d_real[k * self.micro_batch_size: (k + 1) * self.micro_batch_size].mean(0).view(1)
-                            err_micro.backward(retain_graph=True)
-                            torch.nn.utils.clip_grad_norm_(discriminator.parameters(), self.clip_coeff)
-                            for name, param in discriminator.named_parameters():
-                                clipped_grads[name] += param.grad
-                            discriminator.zero_grad()
-
+                    for k in range(int(d_real.size(0) / self.batch_size)):
+                        err_micro = -1*d_real[k * self.batch_size: (k + 1) * self.batch_size].mean(0).view(1)
+                        err_micro.backward(retain_graph=True)
+                        torch.nn.utils.clip_grad_norm_(discriminator.parameters(), clip_norm)
                         for name, param in discriminator.named_parameters():
-                            param.grad = (clipped_grads[name] + torch.FloatTensor(
-                                clipped_grads[name].size()).normal_(0, self.sigma * self.clip_coeff).cuda()) / (
-                                                     d_real.size(0) / self.micro_batch_size)
+                            clipped_grads[name] += param.grad
+                        discriminator.zero_grad()
 
-                        steps += 1
-                
-                    else: 
-                        d_real = -torch.mean(d_real)
-                        d_real.backward() 
-                    
+                    for name, param in discriminator.named_parameters():
+                        param.grad = (clipped_grads[name] + torch.FloatTensor(
+                            clipped_grads[name].size()).normal_(0, noise_multiplier * clip_norm).cuda()) / (
+                                                 d_real.size(0) / self.batch_size)
+
+                    steps += 1
+
 
                     d_fake,_ = discriminator(fake_cat_d)
                     
@@ -501,6 +510,9 @@ class CTABGANSynthesizer:
                     pen.backward()
                 
                     optimizerD.step()
+
+                    privacy_accountant.step(noise_multiplier=noise_multiplier,
+                                            sample_rate=sample_rate)
                     
                 noisez = torch.randn(self.batch_size, self.random_dim, device=self.device)
                 
@@ -577,13 +589,14 @@ class CTABGANSynthesizer:
             epoch += 1
             # NOTE: uncomment following block if you want to calculate privacy budget (epsilon). Be careful, the calculation takes time, you don't want to 
             # calculate it each epoch.
-             
-            # if self.private:
-            #     max_lmbd = 4095
-            #     lmbds = range(2, max_lmbd + 1)
-            #     rdp = compute_rdp(self.micro_batch_size / train_data.shape[0], self.sigma, steps, lmbds)
-            #     epsilon, _, _ = get_privacy_spent(lmbds, rdp, target_delta=1e-5)
-            #     print("Epoch :", epoch, "Epsilon spent : ", epsilon)
+
+
+            # max_lmbd = 4095
+            # lmbds = range(2, max_lmbd + 1)
+            # rdp = compute_rdp(self.micro_batch_size / train_data.shape[0], self.sigma, steps, lmbds)
+            # epsilon, _, _ = get_privacy_spent(lmbds, rdp, target_delta=1e-5)
+            epsilon = privacy_accountant.get_epsilon(delta=delta)
+            print("Epoch :", epoch, "Epsilon spent : ", epsilon)
             
    
     def sample(self, n):

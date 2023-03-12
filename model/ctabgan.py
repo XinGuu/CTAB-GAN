@@ -37,12 +37,29 @@ class CTABGAN():
         self.integer_columns = integer_columns
         self.problem_type = problem_type
                 
-    def fit(self):
+    def fit(self, clip_norm=1., epsilon=1., delta=1e-5, batch_size=500, epoch=3):
         
         start_time = time.time()
-        self.data_prep = DataPrep(self.raw_df,self.categorical_columns,self.log_columns,self.mixed_columns,self.general_columns,self.non_categorical_columns,self.integer_columns,self.problem_type,self.test_ratio)
-        self.synthesizer.fit(train_data=self.data_prep.df, categorical = self.data_prep.column_types["categorical"], mixed = self.data_prep.column_types["mixed"],
-        general = self.data_prep.column_types["general"], non_categorical = self.data_prep.column_types["non_categorical"], type=self.problem_type)
+        self.data_prep = DataPrep(self.raw_df,
+                                  self.categorical_columns,
+                                  self.log_columns,
+                                  self.mixed_columns,
+                                  self.general_columns,
+                                  self.non_categorical_columns,
+                                  self.integer_columns,
+                                  self.problem_type,
+                                  self.test_ratio)
+        self.synthesizer.fit(train_data=self.data_prep.df,
+                             categorical = self.data_prep.column_types["categorical"],
+                             mixed = self.data_prep.column_types["mixed"],
+                             general = self.data_prep.column_types["general"],
+                             non_categorical = self.data_prep.column_types["non_categorical"],
+                             type=self.problem_type,
+                             batch_size=batch_size,
+                             epoch=epoch,
+                             clip_norm=clip_norm,
+                             epsilon=epsilon,
+                             delta=delta)
         end_time = time.time()
         print('Finished training in',end_time-start_time," seconds.")
 
