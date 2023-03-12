@@ -17,3 +17,4 @@
     ```
     python run_ctabgam.py --dataset adult --num_exp 1
     ```
+  see `run_ctabgan.py` for more arguments.
