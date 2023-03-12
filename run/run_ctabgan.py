@@ -18,11 +18,11 @@ if __name__ == '__main__':
     parser.add_argument("--dataset", type=str, choices=["adult", "bank", "cervical"], default="adult")
     parser.add_argument("--raw_csv_name", type=str, default="train", help="Depend on whether you name it train.csv or data.csv")
     parser.add_argument("--num_exp", type=int, default=1, help="Specifying the replication number")
-    parser.add_argument("--epoch", type=int, default=3)
-    parser.add_argument("--batch_size", type=int, default=64)
-    parser.add_argument("--clip_norm", type=float, default=1.)
+    parser.add_argument("--epoch", type=int, default=150, help="Set as 150 in paper")
+    parser.add_argument("--batch_size", type=int, default=500, help="Set as 500 in original code")
+    parser.add_argument("--clip_norm", type=float, default=1., help="Set as 1 in original code")
     parser.add_argument("--epsilon", type=float, default=1.)
-    parser.add_argument("--delta", type=float, default=1e-5)
+    parser.add_argument("--delta", type=float, default=1e-5, help="Set as 1e-5 in original code")
 
     args = parser.parse_args()
     # Specifying the replication number
