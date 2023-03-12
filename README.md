@@ -1,4 +1,6 @@
-# Adapt CTAB-GAN to other raw data format
+# Adapt CTAB-GAN+ to other raw data format
+* Add a `run_ctabgan.py` python file
+* Use Opacus to replace the original rdp_accountant
 
 ## Install
 1. Create a Conda environment using Python 3.7
