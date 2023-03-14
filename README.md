@@ -8,15 +8,23 @@
     conda create -n ctab python=3.7
     conda activate ctab
     ```
-2. Install required package
-   ```
-   pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cu111   # You can use other CUDA version
-   ```
+2. Upgrade pip
+    ```
+    pip install --upgrade pip
+    ```
+3. Install required packages via setuptools
+    ```
+    pip install -e .
+    ```
+4. Install PyTorch 1.9.1 with the appropriate CUDA verison. For example,
+    ```
+    pip install torch==1.9.1+cu111 --extra-index-url https://download.pytorch.org/whl/cu111
+    ```
 
 ## Run
 * Raw data are under `datasets/raw` folder.
 * Under `run` folder, run
     ```
-    python run_ctabgam.py --dataset adult --num_exp 1
+    python run_ctabgan.py --dataset adult --num_exp 1
     ```
   see `run_ctabgan.py` for more arguments.
